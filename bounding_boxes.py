@@ -2,7 +2,7 @@ from ultralytics import YOLO
 import os
 from PIL import Image
 
-dataset_directory = "../105_classes_pins_dataset/"
+dataset_directory = "../Dataset"
 
 # Load a model
 model = YOLO("yolo26n.pt")  # load an official model
@@ -11,7 +11,7 @@ model = YOLO("yolo26n.pt")  # load an official model
 for celeb in os.listdir(dataset_directory):
     celeb_path = os.path.join(dataset_directory, celeb)
     celeb = celeb.replace(" ", "-")
-    os.mkdir(f"working/{celeb}")
+    os.makedirs(f"working/{celeb}",  exist_ok=True)
     for image_file in os.listdir(celeb_path):
         image_path = os.path.join(celeb_path, image_file)
         image_name = image_file.replace(".jpg", "")
