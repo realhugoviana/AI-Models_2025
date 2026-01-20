@@ -21,7 +21,7 @@ results = pd.DataFrame({"celebrity": [], # Name of the celebrity on the image
 for celeb in os.listdir(dataset_directory):
     celeb_path = os.path.join(dataset_directory, celeb)
     celeb = celeb.replace(" ", "-")
-    os.makedirs(f"working/{celeb}",  exist_ok=True)
+    os.makedirs(f"../working/{celeb}",  exist_ok=True)
 
     # Looping through every image in the subdirectory
     for image_file in os.listdir(celeb_path):
@@ -44,7 +44,6 @@ for celeb in os.listdir(dataset_directory):
         for result in results:
             # Access each bounding box
             for box in result.boxes:
-
                 # Save the cropped image
                 x1 = box.xyxy[0].numpy()[0]
                 y1 = box.xyxy[0].numpy()[1]
@@ -55,11 +54,14 @@ for celeb in os.listdir(dataset_directory):
                 cropped.save(f"working/{celeb}/{image_name}-{name}-nn-bb-{x1}-{y1}-{x2}-{y2}.jpg")
 
                 # Saving the results for evaluation
-                r = {"celebrity": [celeb],
+                r = pd.DataFrame({"celebrity": [celeb],
                      "image": [image_name],
                      "class": [name],
                      "confidence": [box.conf],
-                     "prediction_time": [prediction_time]}
-                
+                     "prediction_time": [prediction_time]})
+                results = pd.concat([results, r])
+
+# Saving results to csv for evaluation
+results.to_csv("pre/results/results_bounding_boxes.csv", index=False)
 
                 
