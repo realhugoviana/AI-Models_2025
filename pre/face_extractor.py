@@ -1,10 +1,10 @@
 import math
-import numpy as np
-import cv2
-from PIL import Image
-import dlib
+import numpy as np # type: ignore
+import cv2 # type: ignore
+from PIL import Image # type: ignore
+import dlib # type: ignore
 from pathlib import Path
-from retinaface import RetinaFace
+from retinaface import RetinaFace # type: ignore
 import warnings
 warnings.filterwarnings("ignore")
 
