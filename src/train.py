@@ -81,8 +81,16 @@ if __name__ == "__main__":
         ),
         load_if_exists=True,
     )
+    
+    max_trials = 30
+    existing_trials = len(study.trials)
 
-    study.optimize(objective, n_trials=30)
+    remaining_trials = max(0, max_trials - existing_trials)
+
+    if remaining_trials > 0:
+        study.optimize(objective, n_trials=remaining_trials)
+    else:
+        print("Study already completed.")
 
     print("\nBest validation accuracy:", study.best_value)
     print("Best hyperparameters:")
