@@ -41,7 +41,7 @@ class VGGFaceDataModule(LightningDataModule):
         self,
         data_dir,
         batch_size=64,
-        num_workers=4,
+        num_workers=16,
         test_size=0.2,
         val_size=0.1,
         random_state=42

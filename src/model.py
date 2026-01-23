@@ -149,7 +149,7 @@ class FaceRecognitionModel(L.LightningModule):
 
         acc = self.train_acc(logits.argmax(dim=1), y)
         self.log("train_loss", loss, prog_bar=True)
-        self.log("train_acc", acc, on_epoch=True, prog_bar=True)
+        self.log("train_acc", acc, on_epoch=True, prog_bar=True, sync_dist=True)
 
         return loss
 
@@ -160,7 +160,7 @@ class FaceRecognitionModel(L.LightningModule):
 
         acc = self.val_acc(logits.argmax(dim=1), y)
         self.log("val_loss", loss, prog_bar=True)
-        self.log("val_acc", acc, on_epoch=True, prog_bar=True)
+        self.log("val_acc", acc, on_epoch=True, prog_bar=True, sync_dist=True)
 
     def test_step(self, batch, batch_idx):
         x, y = batch
@@ -169,7 +169,7 @@ class FaceRecognitionModel(L.LightningModule):
 
         acc = self.test_acc(logits.argmax(dim=1), y)
         self.log("test_loss", loss)
-        self.log("test_acc", acc, on_epoch=True)
+        self.log("test_acc", acc, on_epoch=True, prog_bar=True, sync_dist=True)
 
     def configure_optimizers(self):
         return torch.optim.AdamW(
