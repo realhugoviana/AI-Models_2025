@@ -10,3 +10,7 @@ Pillow
 dlib
 matplotlib
 tf-keras
+torch
+lightning
+scikit-learn
+optuna
