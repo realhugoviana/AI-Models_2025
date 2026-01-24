@@ -1,0 +1,173 @@
+\documentclass{rapportECL}
+\usepackage{lipsum}
+\usepackage{multicol}
+\usepackage{hyperref}
+\usepackage{csquotes}
+\usepackage{multirow}
+\usepackage[
+    backend=biber,
+    style=ieee,
+    citestyle=numeric-comp,
+    url=true,
+    doi=true
+]{biblatex}
+\usepackage{tablefootnote}
+
+
+
+\addbibresource{references.bib}
+
+\title{Rapport de projet SE 2025} %Titre du fichier
+
+\begin{document}
+
+%----------- Informations du rapport ---------
+
+\titre{VGGFace pretrained embedder and cosine similarity classifier for celebrity face recognition} %Titre du fichier .pdf
+
+
+\eleves{Bierhoff \textsc{Theolien},  Hugo \textsc{Viana},  Bastian \textsc{Holzer}} %Nom des élèves
+
+\myabstract{}
+
+
+%----------- Initialisation -------------------
+        
+\fairemarges %Afficher les marges
+\fairepagedegarde %Créer la page de garde
+
+%\newpage
+%\thispagestyle{empty}
+%\mbox{}
+
+%\newpage
+
+%\tableofcontents
+%\newpage
+
+%------------ Corps du rapport ----------------
+
+\section{Introduction}
+
+
+\section{Materials and methods}
+
+\subsection{Dataset}
+
+The dataset used for this project is a public domain face recognition dataset found on Kaggle\footnote{https://www.kaggle.com/datasets/hereisburak/pins-face-recognition}. It is composed of photos of cropped faces of 105 celebrities. It contains a total of 17,534 photos. 
+
+\subsection{Models}
+
+
+\subsubsection{Bounding boxes extraction}
+
+Bounding boxes extraction was carried out using the YOLO26\footnote{https://docs.ultralytics.com/fr/models/yolo26/} object detection model. This model provides bounding box predictions along with class labels and confidence scores. The model was applied independently to each image in the dataset.
+
+The dataset is organized into subdirectories, each corresponding to a single identity (celebrity). For each subdirectory, all images were processed sequentially. Each image was passed through the YOLO detector, and the inference time was recorded to evaluate the computational cost of the detection step.
+
+For every detected object, the model outputs a bounding box defined by its top-left and bottom-right coordinates, a predicted class label, and a confidence score. The bounding box coordinates were used to crop the original image, extracting the detected region. Each cropped image was converted to RGB format and saved to a new directory structure that mirrors the original identity-based organization.
+
+In addition to saving the cropped face images, detection metadata was collected for evaluation purposes. For each detected bounding box, the following information was stored:
+\begin{itemize}
+    \item the celebrity associated with the image,
+    \item the original image name,
+    \item the predicted class label,
+    \item the confidence score of the detection,
+    \item the inference time for the image.
+\end{itemize}
+
+These results were aggregated into a structured table and exported as a CSV file. This file was later used to analyze detection performance and processing efficiency.
+
+\subsubsection{Face extraction}
+
+\subsubsection{Face embedding and classification}
+
+The face recognition system is composed of two main components: a face embedding network and a classification head. This modular design separates feature extraction from identity classification and allows the use of a pretrained backbone while training only a lightweight classifier.
+
+The face embedding network is based on a pretrained VGG-M Face\footnote{https://www.robots.ox.ac.uk/~albanie/pytorch-models.html} architecture with batch normalization.
+
+The original classification layer of the backbone is removed and replaced by an identity mapping, allowing the network to output a 4096-dimensional feature vector for each input face image. The resulting feature vectors are then L2-normalized, ensuring that all embeddings lie on a unit hypersphere. This normalization is commonly used in face recognition systems as it stabilizes training and improves the discriminative power of the learned representations.
+
+During training, the embedding network is entirely frozen: its parameters are not updated by backpropagation. This significantly reduces computational cost and limits overfitting, while still benefiting from the strong representational capacity of the pretrained model.
+
+The classification head consists of a single linear layer that maps the 4096-dimensional normalized embeddings to the number of target identities (105 classes in our case). No bias term is used in this layer.
+
+Both the input embeddings and the classifier weights are L2-normalized before computing the linear transformation. As a result, the logits correspond to cosine similarities between embeddings and class weight vectors. These similarities are multiplied by a scaling factor $s$, which controls the magnitude of the logits before the softmax operation.
+
+This cosine-based formulation, inspired by methods such as CosFace and ArcFace, improves optimization by preventing the logits from becoming too small after normalization and leads to faster convergence and more stable training.
+
+The model is trained using the cross-entropy loss computed from the scaled cosine logits. Only the parameters of the classification head are optimized during training.
+
+Optimization is performed using the AdamW optimizer, which combines adaptive learning rates with decoupled weight decay. Weight decay is applied as a regularization mechanism to reduce overfitting of the classifier.
+
+During training, input face images are first passed through the frozen embedding network to produce normalized embeddings. These embeddings are then classified by the trainable classification head.
+
+Model performance is monitored using accuracy on a validation set. The model achieving the highest validation accuracy is selected and used for final evaluation on the test set. The modular structure of the system allows the trained classifier head to be reused with the same embedding network for inference or future experiments.
+
+\subsection{Evaluation}
+
+\subsubsection{Metrics}
+
+We used a standard accuracy metric to evaluate the three stages of the project:
+
+$$Accuracy = \frac{correct\ classifications}{all\ classifications}$$
+
+\subsubsection{Tests and validation}
+
+%What method was used to validate the model during the training and then test it after ?
+For the face embedding and classification step, the dataset was split into 3 subsets: a training set, a validation set and a test set. The training set was used during the training phase for the backpropagation and contains 70\% of the data. A major risk during a neural network training is overfitting to the training set, in which case, instead of learning to recognize patterns, the model memorizes the training data. This makes the model very accurate on the training data but not with other data. 
+
+To avoid overfitting, a validation set containing 10\% of the data is used. For every pass through the training set, the model passes through the validation set without backpropagation and computes the loss.  Training stops when the validation loss stops decreasing and starts increasing, indicating overfitting in most cases.
+
+In order to make an unbiased evaluation of the model after the training phase, a test set containing 20\% of the data is passed through the model without backpropagation. The outputs are used to compute the accuracy previously described.
+
+\subsection{Hyperparameters optimization}
+
+Hyperparameters can greatly influence the performance of a model. Unfortunately, the optimal hyperparameters cannot be known without testing. For this study, we tested a large range of values for the hyperparameters to optimize (Table~\ref{tab:search_grid}). 
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{l l}
+\hline
+Hyperparameter & Search space  \\
+\hline
+Learning rate & $[3\times10^{-4}, 3\times10^{-3}]$\\
+Cosine scaling factor & \{16, 32, 48, 64\}\\
+Weight decay & $[10^{-5}, 5\times10^{-4}]$\\
+\hline
+\end{tabular}
+\caption{Search space of the hyperparameters.}
+\label{tab:search_grid}
+\end{table}
+
+%How did Optuna was used to generate random models ? \\
+Hyperparameter optimization was performed using Optuna, an automatic hyperparameter optimization framework. We conducted 30 trials, where each trial sampled a different combination of hyperparameters from the predefined search space.
+
+To reduce computational cost, each trial was trained for a maximum of 20 epochs. Additionally, Optuna's pruning mechanism was employed to terminate poorly performing trials early when their validation accuracy was significantly worse than that of other trials.
+
+At the end of the optimization process, the combination of hyperparameters yielding the best validation accuracy was selected. These optimal hyperparameters were then used to train the final model for a larger number of epochs.
+
+\section{Results}
+
+\subsection{Bounding boxes extraction}
+
+\subsection{Face extraction}
+
+\subsection{Face embedding and classification}
+
+\section{Discussion}
+
+
+\subsection{Models performance}
+
+
+\subsection{Future works}
+
+
+\usection{Code availability}
+
+All the code is available at: \url{https://github.com/realhugoviana/AI-Models_2025}.
+
+\printbibliography
+
+\end{document}
