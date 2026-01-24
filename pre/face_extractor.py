@@ -1,11 +1,11 @@
 import math
-import numpy as np # type: ignore
-import pandas as pd # type: ignore
-import cv2 # type: ignore
-from PIL import Image # type: ignore
-import dlib # type: ignore
+import numpy as np 
+import pandas as pd 
+import cv2 
+from PIL import Image
+import dlib 
 from pathlib import Path
-from retinaface import RetinaFace # type: ignore
+from retinaface import RetinaFace
 import time
 import warnings
 import os
@@ -14,12 +14,10 @@ warnings.filterwarnings("ignore")
 
 # Parse command line arguments
 parser = argparse.ArgumentParser(description='Face alignment and extraction pipeline')
-parser.add_argument('--input_dir', type=str, default='./working',
-                    help='Input directory containing celebrity subdirectories (default: ./working)')
+parser.add_argument('--input_dir', type=str, default='../working',
+                    help='Input directory containing celebrity subdirectories (default: ../working)')
 parser.add_argument('--output_dir', type=str, default='../working_retinaface',
                     help='Output directory for aligned faces (default: ../working_retinaface)')
-parser.add_argument('--output_size', type=int, default=160,
-                    help='Output image size in pixels (default: 160)')
 parser.add_argument('--max_rotation', type=float, default=10.0,
                     help='Maximum allowed rotation angle in degrees (default: 10.0)')
 parser.add_argument('--min_confidence', type=float, default=0.95,
@@ -46,7 +44,6 @@ landmark_detector = dlib.shape_predictor(args.landmark_model)
 print(f"Configuration:")
 print(f"  Input directory: {args.input_dir}")
 print(f"  Output directory: {args.output_dir}")
-print(f"  Output size: {args.output_size}x{args.output_size}")
 print(f"  Max rotation: {args.max_rotation}°")
 print(f"  Min confidence: {args.min_confidence}")
 print(f"  Eye distance range: {args.min_eye_distance}-{args.max_eye_distance}px")
@@ -217,42 +214,46 @@ for celeb in os.listdir(repo_path):
             })
             continue
 
-        eyes_center = (int((x1 + x2) / 2), int((y1 + y2) / 2))
-        M = cv2.getRotationMatrix2D(eyes_center, alpha, 1.0)
+        # Center based on facial landmarks
+        h, w = masked_face.shape[:2]
+        img_center = (w // 2, h // 2)
+        
+        # Get cheek landmarks for horizontal centering (landmarks 2 and 16)
+        left_cheek = landmarks_tuple[2]   # Left side of face
+        right_cheek = landmarks_tuple[16]  # Right side of face
+        
+        # Calculate horizontal center of the face
+        face_center_x = (left_cheek[0] + right_cheek[0]) / 2
+        
+        # Get eyebrow landmarks (20-25 route) and chin (landmark 9) for vertical centering
+        eyebrow_points = [landmarks_tuple[i] for i in [20, 25]]
+        eyebrow_center_y = sum(p[1] for p in eyebrow_points) / len(eyebrow_points)
+        chin_y = landmarks_tuple[9][1]
+        
+        # Calculate vertical center of the face (midpoint between eyebrow center and chin)
+        face_center_y = (eyebrow_center_y + chin_y) / 2
+        
+        # Calculate translation to center the face
+        tx = img_center[0] - face_center_x
+        ty = img_center[1] - face_center_y
+        
+        # Create rotation matrix around image center
+        M_rot = cv2.getRotationMatrix2D(img_center, alpha, 1.0)
+        
+        # Add translation to center the face based on landmarks
+        M_rot[0, 2] += tx
+        M_rot[1, 2] += ty
 
-        # Use consistent dimensions
+        # Apply combined transformation
         aligned_img = cv2.warpAffine(
             masked_face,
-            M,
-            (masked_face.shape[1], masked_face.shape[0]),
+            M_rot,
+            (w, h),
             flags=cv2.INTER_CUBIC
         )
 
-       # Center and crop to fixed size OR resize with padding
-        output_size = args.output_size
-        
-        
-        # Resize without cropping - maintain full image with padding
-        h, w = aligned_img.shape[:2]
-        
-        # Calculate scaling factor to fit within output_size
-        scale = min(output_size / w, output_size / h)
-        new_w = int(w * scale)
-        new_h = int(h * scale)
-        
-        # Resize image
-        resized = cv2.resize(aligned_img, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
-        
-        # Create output canvas with padding
-        final_img = np.zeros((output_size, output_size, 3), dtype=np.uint8)
-        
-        # Center the resized image
-        y_offset = (output_size - new_h) // 2
-        x_offset = (output_size - new_w) // 2
-        final_img[y_offset:y_offset+new_h, x_offset:x_offset+new_w] = resized
-
         output_path = Path(args.output_dir) / celeb / f"{bounding_box_name}.jpg"
-        cv2.imwrite(str(output_path), final_img)
+        cv2.imwrite(str(output_path), aligned_img)
 
         results_list.append({
             "celebrity": celeb,

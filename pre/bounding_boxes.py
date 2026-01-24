@@ -5,7 +5,9 @@ import numpy as np # type: ignore
 import pandas as pd # type: ignore
 import time
 
-dataset_directory = "../105_classes_pins_dataset"
+# dataset_directory = "../105_classes_pins_dataset"
+dataset_directory = ".././Dataset"
+
 
 # Load a model
 model = YOLO("yolo26n.pt")  # load an official model
