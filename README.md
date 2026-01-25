@@ -36,3 +36,16 @@ python3 face_extractor.py --input_dir ./working --output_dir ../working_retinafa
 - `--landmark_model` (default: `shape_predictor_68_face_landmarks.dat`) - Path to dlib landmark model
 - `--results_csv` (default: `pre/results/results_retina-face.csv`) - Output CSV file for results
 - `--needle` (default: `person`) - String to search for in filename (filter)
+
+Graphical User Interface (GUI)
+
+This repository provides an interactive graphical interface to use the trained multi-head face recognition model.
+The GUI allows users to upload an image and obtain predictions for:
+
+Celebrity identity (among 105 known celebrities)
+
+Sex classification (Male / Female)
+
+Closest matching celebrity for unknown individuals
+
+The interface is built using Gradio, enabling a clean, browser-based experience similar to modern AI tools.

@@ -14,3 +14,7 @@ torch
 lightning
 scikit-learn
 optuna
+gradio
+torch
+torchvision
+lightning
