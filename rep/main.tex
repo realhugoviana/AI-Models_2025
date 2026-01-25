@@ -23,7 +23,7 @@
 
 %----------- Informations du rapport ---------
 
-\titre{VGGFace pretrained embedder and cosine similarity classifier for celebrity face recognition} %Titre du fichier .pdf
+\titre{VGGFace pretrained embedder and cosine similarity classifiers for celebrity face and sex recognition} %Titre du fichier .pdf
 
 
 \eleves{Bierhoff \textsc{Theolien},  Hugo \textsc{Viana},  Bastian \textsc{Holzer}} %Nom des élèves
@@ -51,6 +51,15 @@ This project presents a face recognition pipeline based on a pretrained VGG-M Fa
 
 \section{Introduction}
 
+Face recognition systems generally rely on a multi-stage pipeline including face detection, face alignment or extraction, feature representation, and identity classification. The performance of the overall system depends on the robustness of each of these stages.
+
+In this project, we implement a complete face recognition pipeline using the models assigned in the subject. Face detection and localization are performed using two complementary approaches. First, YOLO26 is used to extract bounding boxes from images in order to localize faces and evaluate detection speed and robustness. In addition, RetinaFace is employed as a dedicated face detection model to produce more precise and reliable face crops, particularly in challenging conditions such as variations in pose or illumination.
+
+Once faces are extracted, identity representation is handled by a pretrained VGG-M Face model with batch normalization. This network is used as a fixed face embedding extractor, producing 4096-dimensional feature vectors for each detected face. The embedding network is frozen during training to leverage pretrained facial representations while reducing computational cost and overfitting.
+
+Face recognition is formulated as a multiclass classification task over 105 celebrity identities. A cosine-similarity-based linear classifier is trained on top of the fixed embeddings. This separation between embedding extraction and classification allows the impact of classifier design and hyperparameters to be studied independently of the backbone model.
+
+The objective of this work is to evaluate the effectiveness of this pipeline, analyze detection and recognition performance, and study the influence of hyperparameter optimization on classification results using standard evaluation metrics.
 
 \section{Materials and methods}
 
@@ -82,7 +91,7 @@ These results were aggregated into a structured table and exported as a CSV file
 
 \subsubsection{Face extraction}
 
-\subsubsection{Face embedding and classification}
+\subsubsection{Single-head classifier}
 
 The face recognition system is composed of two main components: a face embedding network and a classification head. This modular design separates feature extraction from identity classification and allows the use of a pretrained backbone while training only a lightweight classifier.
 
@@ -105,6 +114,8 @@ Optimization is performed using the AdamW optimizer, which combines adaptive lea
 During training, input face images are first passed through the frozen embedding network to produce normalized embeddings. These embeddings are then classified by the trainable classification head.
 
 Model performance is monitored using accuracy on a validation set. The model achieving the highest validation accuracy is selected and used for final evaluation on the test set. The modular structure of the system allows the trained classifier head to be reused with the same embedding network for inference or future experiments.
+
+\subsubsection{Multi-head classifier}
 
 \subsection{Evaluation}
 
@@ -188,24 +199,28 @@ At the end of the optimization process, the combination of hyperparameters yield
 
 \subsection{Face embedding and classification}
 
-Table~\ref{tab:embedder_classifier_results} presents the test performances of the face recognition model composed of a fixed face embedding network followed by a linear classifier.
+Table~\ref{tab:single_head_classifier_results} presents the test performances of the face recognition model composed of a fixed face embedding network followed by either a single-head or multi-head linear classifier.
 
-The gap between accuracy (0.844) and macro-averaged precision, recall, and F1-score ($\sim$0.75) indicates that while the model achieves strong overall performance, its predictions are less consistent across all identities. This suggests that some classes are more challenging to recognize than others, which is expected in face recognition tasks due to variations in pose, illumination, and image quality.
+The single-head classifier, trained only on identity labels, achieves an accuracy of 0.844. However, the lower macro-averaged precision, recall, and F1-score ($\sim$ 0.75) indicate uneven performance across identities. This suggests that while the model performs well overall, some identities remain more difficult to classify, this can be attributed to the uneven sample size between celebrities.
+
+The multi-head classifier introduces an auxiliary prediction task on sex in addition to identity classification. While identity accuracy decreases to 0.728 in this setting, the auxiliary sex classification achieves a high accuracy of 0.941. This shows that the shared embeddings capture strong demographic information, but that jointly optimizing multiple objectives may negatively impact identity discrimination in this configuration.
 
 \begin{table}[h!]
 \centering
-\begin{tabular}{l l}
+\begin{tabular}{c c c c c c}
 \hline
-Metric & Performance \\
+\multirow{2}{*}{Model} & \multirow{2}{*}{Classification feature} & \multicolumn{4}{c}{Metrics} \\
+\cline{3-6}
+ & & Accuracy & Precision & Recall & F1-Score \\
 \hline
-Accuracy & 0.844\\
-Precision & 0.751\\
-Recall & 0.748\\
-F1-Score & 0.744\\
+Single-head & Identity & 0.844 & 0.751 & 0.748 & 0.744\\
+\hline
+\multirow{2}{*}{Multi-head} & Identity & 0.728 & 0.736 & 0.742 & 0.733\\
+ & Sex & 0.941 & 0.940 & 0.936 & 0.938\\
 \hline
 \end{tabular}
-\caption{Test performances of the classifier.}
-\label{tab:embedder_classifier_results}
+\caption{Test performances of the classifiers.}
+\label{tab:single_head_classifier_results}
 \end{table}
 
 \section{Discussion}
@@ -213,10 +228,15 @@ F1-Score & 0.744\\
 
 \subsection{Models performance}
 
+As we have seen, the single-head classifier performs relatively better than the multi-head classifier, on predicting the identity of a celebrity. This may be due to the interference of the sex classifier head.
+
+Furthermore, the heterogenous distribution of the dataset between celebrities caused the precision, recall and F1-Score to be significantly lower than accuracy. Unfortunately, for some celebrities, we didn't have enough pictures to make a precise prediction. 
+
 \subsection{Future works}
 
+With the given time for the project, we were unable to broaden our experiments. It would have been interesting to test the performances of a single-head sex classifier, given the encouraging performances with the multi-head.
 
-
+Additionally, given a larger data sample, fine-tuning the VGGFace model to fit our celebrities could improve the performances.
 
 \usection{Code availability}
 
