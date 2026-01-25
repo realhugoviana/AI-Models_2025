@@ -5,3 +5,10 @@ logs/final_model/version_0/events.out.tfevents.1769181332.chifflot-5.lille.grid5
 logs/final_model/version_0/hparams.yaml
 logs/final_model/version_0/checkpoints/best-epochepoch=48-val_accval_acc=0.8705.ckpt
 logs/optuna_trials/trial_81/checkpoints/epochepoch=03-val_accval_acc=0.8423.ckpt
+rep/main.aux
+rep/main.bcf
+rep/main.log
+rep/main.nlo
+rep/main.out
+rep/main.run.xml
+rep/main.synctex.gz

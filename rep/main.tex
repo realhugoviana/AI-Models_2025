@@ -28,7 +28,9 @@
 
 \eleves{Bierhoff \textsc{Theolien},  Hugo \textsc{Viana},  Bastian \textsc{Holzer}} %Nom des élèves
 
-\myabstract{}
+\myabstract{
+This project presents a face recognition pipeline based on a pretrained VGG-M Face embedding network and a cosine similarity classifier. Faces are first detected and cropped using a YOLO-based object detector, then the facial features are extracted using a retina-face model, and finally mapped to 4096-dimensional normalized embeddings. The embedding network is frozen and only a lightweight linear classifier is trained. Hyperparameters are optimized using Optuna with pruning. The model is evaluated on a 105-class celebrity dataset using accuracy, precision, recall, and F1-score. The final model achieves an accuracy of 0.844, with macro-averaged precision, recall, and F1-score of 0.751, 0.748, and 0.744 respectively.
+}
 
 
 %----------- Initialisation -------------------
@@ -112,6 +114,37 @@ We used a standard accuracy metric to evaluate the three stages of the project:
 
 $$Accuracy = \frac{correct\ classifications}{all\ classifications}$$
 
+In addition to accuracy, we report precision, recall, and F1-score to provide a more detailed evaluation of the classification performance. Since the task is formulated as a multiclass classification problem, these metrics are computed using a macro-averaging strategy, which assigns equal importance to each class regardless of its number of samples.
+
+For a given class $k$, precision and recall are defined as:
+
+$$
+Precision_k = \frac{TP_k}{TP_k + FP_k}
+$$
+
+$$
+Recall_k = \frac{TP_k}{TP_k + FN_k}
+$$
+
+where $TP_k$, $FP_k$, and $FN_k$ respectively denote the number of true positives, false positives, and false negatives for class $k$.
+
+The macro-averaged precision and recall are obtained by averaging these quantities over all $K$ classes:
+
+$$
+Precision_{macro} = \frac{1}{K} \sum_{k=1}^{K} Precision_k
+$$
+
+$$
+Recall_{macro} = \frac{1}{K} \sum_{k=1}^{K} Recall_k
+$$
+
+Finally, the F1-score, which balances precision and recall, is defined as the harmonic mean of precision and recall:
+
+$$
+F1_{macro} = 2 \cdot \frac{Precision_{macro} \cdot Recall_{macro}}
+{Precision_{macro} + Recall_{macro}}
+$$
+
 \subsubsection{Tests and validation}
 
 %What method was used to validate the model during the training and then test it after ?
@@ -155,13 +188,34 @@ At the end of the optimization process, the combination of hyperparameters yield
 
 \subsection{Face embedding and classification}
 
+Table~\ref{tab:embedder_classifier_results} presents the test performances of the face recognition model composed of a fixed face embedding network followed by a linear classifier.
+
+The gap between accuracy (0.844) and macro-averaged precision, recall, and F1-score ($\sim$0.75) indicates that while the model achieves strong overall performance, its predictions are less consistent across all identities. This suggests that some classes are more challenging to recognize than others, which is expected in face recognition tasks due to variations in pose, illumination, and image quality.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{l l}
+\hline
+Metric & Performance \\
+\hline
+Accuracy & 0.844\\
+Precision & 0.751\\
+Recall & 0.748\\
+F1-Score & 0.744\\
+\hline
+\end{tabular}
+\caption{Test performances of the classifier.}
+\label{tab:embedder_classifier_results}
+\end{table}
+
 \section{Discussion}
 
 
 \subsection{Models performance}
 
-
 \subsection{Future works}
+
+
 
 
 \usection{Code availability}
