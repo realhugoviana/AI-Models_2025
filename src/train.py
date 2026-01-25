@@ -5,6 +5,7 @@ import lightning as L  # type: ignore
 from optuna.integration import PyTorchLightningPruningCallback  # type: ignore
 from lightning.pytorch.loggers import TensorBoardLogger  # type: ignore
 from lightning.pytorch.callbacks import ModelCheckpoint  # type: ignore
+from lightning.pytorch.callbacks import EarlyStopping  # type: ignore
 
 from dataset import VGGFaceDataModule
 from model import FaceRecognitionModel
@@ -81,6 +82,14 @@ if __name__ == "__main__":
         ),
         load_if_exists=True,
     )
+
+    early_stop = EarlyStopping(
+        monitor="val_acc",
+        mode="max",
+        patience=8,
+        min_delta=1e-4,
+        verbose=True,
+    )
     
     max_trials = 30
     existing_trials = len(study.trials)
@@ -119,13 +128,13 @@ if __name__ == "__main__":
     )
 
     trainer = L.Trainer(
-        max_epochs=50,
+        max_epochs=100,
         accelerator="gpu",
         devices=2,
         strategy="ddp",
         precision=32,
         logger=final_logger,
-        callbacks=[final_checkpoint],
+        callbacks=[final_checkpoint, early_stop],
         enable_checkpointing=True,
     )
 
