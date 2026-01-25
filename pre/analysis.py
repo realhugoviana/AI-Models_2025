@@ -5,7 +5,7 @@ import shutil
 # ==============================
 # Configuration
 # ==============================
-INPUT_CSV = "pre/results/results_bounding_boxes.csv"
+INPUT_CSV = "pre/results/results_retina-face.csv"
 WORKING_DIR = Path("../working")
 OUTPUT_DIR = Path("analysis")
 PERSON_CLASS = "person"
