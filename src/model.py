@@ -123,18 +123,20 @@ class FaceRecognitionModel(L.LightningModule):
 
         self.criterion = nn.CrossEntropyLoss()
 
-        self.train_acc = torchmetrics.Accuracy(
-            task="multiclass",
-            num_classes=num_classes
-        )
-        self.val_acc = torchmetrics.Accuracy(
-            task="multiclass",
-            num_classes=num_classes
-        )
-        self.test_acc = torchmetrics.Accuracy(
-            task="multiclass",
-            num_classes=num_classes
-        )
+        self.train_acc = torchmetrics.Accuracy(task="multiclass", num_classes=num_classes)
+        self.train_precision = torchmetrics.Precision(task="multiclass", num_classes=num_classes)
+        self.train_recall = torchmetrics.Recall(task="multiclass", num_classes=num_classes)
+        self.train_f1 = torchmetrics.F1Score(task="multiclass", num_classes=num_classes)
+
+        self.val_acc = torchmetrics.Accuracy(task="multiclass", num_classes=num_classes)
+        self.val_precision = torchmetrics.Precision(task="multiclass", num_classes=num_classes)
+        self.val_recall = torchmetrics.Recall(task="multiclass", num_classes=num_classes)
+        self.val_f1 = torchmetrics.F1Score(task="multiclass", num_classes=num_classes)
+
+        self.test_acc = torchmetrics.Accuracy(task="multiclass", num_classes=num_classes)
+        self.test_precision = torchmetrics.Precision(task="multiclass", num_classes=num_classes)
+        self.test_recall = torchmetrics.Recall(task="multiclass", num_classes=num_classes)
+        self.test_f1 = torchmetrics.F1Score(task="multiclass", num_classes=num_classes)
 
     def forward(self, x):
         with torch.no_grad():
@@ -148,8 +150,15 @@ class FaceRecognitionModel(L.LightningModule):
         loss = self.criterion(logits, y)
 
         acc = self.train_acc(logits.argmax(dim=1), y)
+        precision = self.train_precision(logits.argmax(dim=1), y)
+        recall = self.train_recall(logits.argmax(dim=1), y)
+        f1 = self.train_f1(logits.argmax(dim=1), y)
+
         self.log("train_loss", loss, prog_bar=True)
         self.log("train_acc", acc, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("train_precision", precision, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("train_recall", recall, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("train_f1", f1, on_epoch=True, prog_bar=True, sync_dist=True)
 
         return loss
 
@@ -159,8 +168,15 @@ class FaceRecognitionModel(L.LightningModule):
         loss = self.criterion(logits, y)
 
         acc = self.val_acc(logits.argmax(dim=1), y)
+        precision = self.val_precision(logits.argmax(dim=1), y)
+        recall = self.val_recall(logits.argmax(dim=1), y)
+        f1 = self.val_f1(logits.argmax(dim=1), y)
+
         self.log("val_loss", loss, prog_bar=True)
         self.log("val_acc", acc, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("val_precision", precision, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("val_recall", recall, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("val_f1", f1, on_epoch=True, prog_bar=True, sync_dist=True)
 
     def test_step(self, batch, batch_idx):
         x, y = batch
@@ -168,8 +184,15 @@ class FaceRecognitionModel(L.LightningModule):
         loss = self.criterion(logits, y)
 
         acc = self.test_acc(logits.argmax(dim=1), y)
+        precision = self.test_precision(logits.argmax(dim=1), y)
+        recall = self.test_recall(logits.argmax(dim=1), y)
+        f1 = self.test_f1(logits.argmax(dim=1), y)
+
         self.log("test_loss", loss)
         self.log("test_acc", acc, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("test_precision", precision, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("test_recall", recall, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("test_f1", f1, on_epoch=True, prog_bar=True, sync_dist=True)
 
     def configure_optimizers(self):
         return torch.optim.AdamW(
