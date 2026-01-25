@@ -124,19 +124,19 @@ class FaceRecognitionModel(L.LightningModule):
         self.criterion = nn.CrossEntropyLoss()
 
         self.train_acc = torchmetrics.Accuracy(task="multiclass", num_classes=num_classes)
-        self.train_precision = torchmetrics.Precision(task="multiclass", num_classes=num_classes)
-        self.train_recall = torchmetrics.Recall(task="multiclass", num_classes=num_classes)
-        self.train_f1 = torchmetrics.F1Score(task="multiclass", num_classes=num_classes)
+        self.train_precision = torchmetrics.Precision(task="multiclass", num_classes=num_classes, average='macro')
+        self.train_recall = torchmetrics.Recall(task="multiclass", num_classes=num_classes, average='macro')
+        self.train_f1 = torchmetrics.F1Score(task="multiclass", num_classes=num_classes, average='macro')
 
         self.val_acc = torchmetrics.Accuracy(task="multiclass", num_classes=num_classes)
-        self.val_precision = torchmetrics.Precision(task="multiclass", num_classes=num_classes)
-        self.val_recall = torchmetrics.Recall(task="multiclass", num_classes=num_classes)
-        self.val_f1 = torchmetrics.F1Score(task="multiclass", num_classes=num_classes)
+        self.val_precision = torchmetrics.Precision(task="multiclass", num_classes=num_classes, average='macro')
+        self.val_recall = torchmetrics.Recall(task="multiclass", num_classes=num_classes, average='macro')
+        self.val_f1 = torchmetrics.F1Score(task="multiclass", num_classes=num_classes, average='macro')
 
         self.test_acc = torchmetrics.Accuracy(task="multiclass", num_classes=num_classes)
-        self.test_precision = torchmetrics.Precision(task="multiclass", num_classes=num_classes)
-        self.test_recall = torchmetrics.Recall(task="multiclass", num_classes=num_classes)
-        self.test_f1 = torchmetrics.F1Score(task="multiclass", num_classes=num_classes)
+        self.test_precision = torchmetrics.Precision(task="multiclass", num_classes=num_classes, average='macro')
+        self.test_recall = torchmetrics.Recall(task="multiclass", num_classes=num_classes, average='macro')
+        self.test_f1 = torchmetrics.F1Score(task="multiclass", num_classes=num_classes, average='macro')
 
     def forward(self, x):
         with torch.no_grad():
