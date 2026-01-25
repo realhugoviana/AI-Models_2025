@@ -29,8 +29,26 @@
 \eleves{Bierhoff \textsc{Theolien},  Hugo \textsc{Viana},  Bastian \textsc{Holzer}} %Nom des élèves
 
 \myabstract{
-This project presents a face recognition pipeline based on a pretrained VGG-M Face embedding network and a cosine similarity classifier. Faces are first detected and cropped using a YOLO-based object detector, then the facial features are extracted using a retina-face model, and finally mapped to 4096-dimensional normalized embeddings. The embedding network is frozen and only a lightweight linear classifier is trained. Hyperparameters are optimized using Optuna with pruning. The model is evaluated on a 105-class celebrity dataset using accuracy, precision, recall, and F1-score. The final model achieves an accuracy of 0.844, with macro-averaged precision, recall, and F1-score of 0.751, 0.748, and 0.744 respectively.
+This project presents a face recognition pipeline using a pretrained VGG-M Face
+embedding network with cosine-similarity-based classifiers. Faces are first detected
+and cropped using a YOLO-based detector, then refined with RetinaFace and Dlib,
+and mapped to 4096-dimensional L2-normalized embeddings.
+
+The embedding network is frozen during training, while lightweight linear classifiers
+are optimized. Two configurations are explored: a single-head classifier for celebrity
+identity, and a multi-head classifier for joint identity and biological sex prediction.
+Hyperparameters are tuned with Optuna and early pruning.
+
+Evaluation on 105 celebrity identities shows that the single-head model achieves 0.844
+accuracy and macro-averaged precision, recall, and F1-score of 0.751, 0.748, and 0.744.
+The multi-head model reaches 0.728 accuracy for identity (macro-precision/recall/F1: 0.736/0.742/0.744)
+and 0.938 accuracy for sex prediction (macro-precision/recall/F1: 0.941
+
+/0.940/0.936).
 }
+
+
+
 
 
 %----------- Initialisation -------------------
@@ -91,6 +109,21 @@ These results were aggregated into a structured table and exported as a CSV file
 
 \subsubsection{Face extraction}
 
+To extract faces and their associated geometric information, two models were used: \textit{RetinaFace} and the \textit{Dlib face detector}. This dual approach was adopted to improve robustness and accuracy. First, Dlib is used to detect and roughly localize the face, allowing an initial cropping (masking) of the image. This preprocessing step reduces background noise and improves the subsequent performance of RetinaFace. RetinaFace is then applied to the cropped image to extract precise facial landmarks, which are used to align and center the face.
+
+During this phase, several sanity checks are performed to ensure that poorly oriented or low-quality faces are excluded from the training pipeline, as such samples could negatively impact the final model performance.
+
+A dedicated subdirectory is created to store the cropped and aligned face images. These processed images are later used directly to train both the single-head and multi-head classifiers.
+
+To evaluate this face extraction phase, metadata are collected for each processed image, including:
+\begin{itemize}
+    \item the number of images that successfully pass the sanity checks,
+    \item the face detection and processing time per image.
+\end{itemize}
+
+These metrics are aggregated into a structured table and exported as a CSV file. This dataset is subsequently used to analyze detection performance as well as processing efficiency.
+
+
 \subsubsection{Single-head classifier}
 
 The face recognition system is composed of two main components: a face embedding network and a classification head. This modular design separates feature extraction from identity classification and allows the use of a pretrained backbone while training only a lightweight classifier.
@@ -116,6 +149,67 @@ During training, input face images are first passed through the frozen embedding
 Model performance is monitored using accuracy on a validation set. The model achieving the highest validation accuracy is selected and used for final evaluation on the test set. The modular structure of the system allows the trained classifier head to be reused with the same embedding network for inference or future experiments.
 
 \subsubsection{Multi-head classifier}
+
+The multi-head face recognition system extends the single-head architecture by jointly
+predicting multiple attributes from a shared facial representation. As in the single-head
+setting, the system is composed of a frozen face embedding network and a lightweight
+trainable classification module. However, instead of a single classifier, multiple heads
+are used to perform different prediction tasks in parallel.
+
+The face embedding network is identical to the one used in the single-head classifier.
+It is based on a pretrained VGG-M Face architecture with batch normalization, from which
+the original classification layer is removed and replaced by an identity mapping. This
+modification allows the network to output a 4096-dimensional feature vector for each
+input face image. The resulting embeddings are L2-normalized, ensuring that they lie on
+a unit hypersphere.
+
+As in the single-head setup, the embedding network is entirely frozen during training.
+Freezing the backbone significantly reduces computational cost and prevents overfitting,
+while still leveraging the strong representational power of the pretrained model.
+
+The classification module consists of two independent linear heads that operate on the
+same normalized embeddings:
+\begin{itemize}
+    \item a celebrity identity head, which predicts one of the 105 target identities,
+    \item a sex classification head, which predicts the biological sex of the individual.
+\end{itemize}
+
+Each head is implemented as a linear layer without bias, mapping the 4096-dimensional
+embedding space to its respective number of output classes. Before computing the linear
+transformation, both the input embeddings and the classifier weights are L2-normalized.
+Consequently, the logits produced by each head correspond to cosine similarities between
+the embeddings and the class weight vectors.
+
+To improve numerical stability and optimization, the cosine similarities of each head
+are multiplied by a task-specific scaling factor $s$. Separate scaling factors are used for
+the identity and sex classification heads, allowing each task to operate at an appropriate
+logit magnitude. This cosine-based formulation is inspired by metric-learning approaches
+such as CosFace and ArcFace and encourages better inter-class separation.
+
+Training is performed using a weighted sum of cross-entropy losses, one for each head.
+Only the parameters of the classification heads are optimized during training, while the
+embedding network remains frozen. The total loss is defined as:
+\[
+\mathcal{L} = \lambda_{\text{name}} \mathcal{L}_{\text{name}} + \lambda_{\text{sex}} \mathcal{L}_{\text{sex}},
+\]
+where $\mathcal{L}_{\text{name}}$ and $\mathcal{L}_{\text{sex}}$ denote the cross-entropy
+losses for identity and sex prediction respectively, and $\lambda$ controls the relative
+importance of each task.
+
+Optimization is carried out using the AdamW optimizer, which combines adaptive learning
+rates with decoupled weight decay. Weight decay is applied to the classifier parameters as
+a regularization mechanism to reduce overfitting.
+
+During training, each input face image is passed through the frozen embedding network to
+produce a normalized embedding. This embedding is then simultaneously processed by both
+classification heads to generate identity and sex predictions.
+
+Model performance is monitored using validation accuracy for both tasks. The model
+achieving the best validation performance is selected for final evaluation on the test set.
+This multi-head design enables efficient joint learning of identity and sex information
+while maintaining a compact and modular architecture that can be easily extended to
+additional facial attributes in future work.
+
 
 \subsection{Evaluation}
 
@@ -195,7 +289,132 @@ At the end of the optimization process, the combination of hyperparameters yield
 
 \subsection{Bounding boxes extraction}
 
+Table~\ref{tab:yolo_reliability} reports the image-level reliability of the YOLO-based
+object detection model used to identify humans within the dataset.
+All images are known \emph{a priori} to contain at least one human subject, which allows
+the evaluation to focus on detection reliability rather than localization accuracy.
+
+An image is considered correctly detected if the model predicts at least one bounding
+box classified as \texttt{person}. Under this criterion, the detector achieves a high
+reliability, indicating that the vast majority of images contain at least one valid
+person detection. This confirms that the model is well suited as a preprocessing step
+for downstream face extraction and recognition tasks, where missing a subject would
+directly propagate errors to later stages.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{c c c}
+\hline
+\multirow{1}{*}{Model} & Metric & Value \\
+\hline
+\multirow{3}{*}{YOLO (Person)} 
+ & Total images & 17227 \\
+ & Images with person detected & 17058 \\
+ & Reliability & 99.02\% \\
+\hline
+\end{tabular}
+\caption{Image-level person detection reliability of the YOLO model.}
+\label{tab:yolo_reliability}
+\end{table}
+
+
+
+Table~\ref{tab:yolo_timing_confidence} summarizes the inference efficiency and confidence
+statistics of the YOLO detector. Prediction times are computed on a per-image basis,
+while confidence statistics are aggregated over all bounding boxes classified as
+\texttt{person}.
+
+The relatively low mean prediction time demonstrates that the detector can be applied
+efficiently at scale, while the confidence statistics indicate stable and consistent
+person detections across the dataset. These properties are essential for ensuring both
+computational feasibility and robustness in the overall face recognition pipeline.
+
+Figure~\ref{fig:yolo_confidence_distribution} shows the distribution of confidence
+scores for detections classified as \texttt{person}. The distribution is strongly
+skewed toward high confidence values, with most detections exceeding 0.8.
+This indicates that the YOLO model not only detects persons reliably but does so
+with high certainty in the majority of cases. The presence of lower-confidence
+detections likely corresponds to challenging images involving occlusions,
+unusual poses, or small-scale subjects.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{c c c}
+\hline
+\multirow{1}{*}{Model} & Metric & Value \\
+\hline
+\multirow{4}{*}{YOLO (Person)} 
+ & Prediction time mean (s) & 2.074 \\
+ & Prediction time std (s) & 0.128 \\
+ & Person confidence mean (\%) & 84.41 \\
+ & Person confidence std (\%) & 16.58 \\
+\hline
+\end{tabular}
+\caption{Prediction time and confidence statistics for YOLO-based person detection.}
+\label{tab:yolo_timing_confidence}
+\end{table}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.75\linewidth]{person_confidence_hist.png}
+\caption{Distribution of confidence scores for detections classified as \texttt{person} by the YOLO model.}
+\label{fig:yolo_confidence_distribution}
+\end{figure}
+
+
+
+
 \subsection{Face extraction}
+
+Table~\ref{tab:retinaface_reliability} reports the image-level reliability of the
+RetinaFace-based face extraction pipeline. Each image was processed by RetinaFace and Dlib
+to detect, crop, align and center a human face.
+
+An image is considered successfully processed if RetinaFace extracts at least one
+face. Under this criterion, the pipeline achieves a moderate reliability of 39.6\%,
+reflecting that some images are challenging due to occlusions, extreme poses, or
+other visual difficulties. Despite the lower extraction rate compared to YOLO detection,
+the retained faces are expected to be of high quality for subsequent embedding and
+classification.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{c c c}
+\hline
+\multirow{1}{*}{Model} & Metric & Value \\
+\hline
+\multirow{3}{*}{RetinaFace (Face)} 
+ & Total images & 17058 \\
+ & Images with face extracted & 6760 \\
+ & Reliability & 39.63\% \\
+\hline
+\end{tabular}
+\caption{Image-level face extraction reliability of the RetinaFace model.}
+\label{tab:retinaface_reliability}
+\end{table}
+
+Table~\ref{tab:retinaface_timing} summarizes the inference efficiency of the RetinaFace
+pipeline. Prediction times are measured per image.
+
+The mean prediction time of 4.65 seconds per image indicates that while the face
+extraction step is slower than YOLO-based person detection, it provides high-quality
+aligned faces necessary for reliable feature embedding and classification.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{c c c}
+\hline
+\multirow{1}{*}{Model} & Metric & Value \\
+\hline
+\multirow{2}{*}{RetinaFace (Face)} 
+ & Prediction time mean (s) & 4.65 \\
+ & Prediction time std (s) & 1.12 \\
+\hline
+\end{tabular}
+\caption{Timing statistics for RetinaFace-based face extraction.}
+\label{tab:retinaface_timing}
+\end{table}
+
 
 \subsection{Face embedding and classification}
 
